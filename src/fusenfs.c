@@ -1,28 +1,6 @@
-/*
-  FUSE: Filesystem in Userspace
-  Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
-  This program can be distributed under the terms of the GNU GPLv2.
-  See the file COPYING.
-*/
-
-/** @file
- *
- * minimal example filesystem using high-level API
- *
- * Compile with:
- *
- *     gcc -Wall hello.c `pkg-config fuse3 --cflags --libs` -o hello
- *
- * ## Source code ##
- * \include hello.c
- */
-
-
 #define FUSE_USE_VERSION 31
 #define MAX_FILEPATH_LENGTH 4096
 #define CHUNK_SIZE 4 * 1024 * 1024
-
-#define OPEN_FLAG 1
 
 #include <fuse3/fuse.h>
 #include <stdio.h>
@@ -80,7 +58,7 @@ static const struct fuse_opt option_spec[] = {
     OPTION("--host-ip=%s", host),
     OPTION("--pubkey=%s", pubkeyfile),
     OPTION("--privkey=%s", privkeyfile),
-    OPTION("--host-mountpoint=%s", host_mp),
+    OPTION("--host-mp=%s", host_mp),
     OPTION("--tmp-dir=%s", tmp_dir),
 	OPTION("-h", show_help),
 	OPTION("--help", show_help),
@@ -279,12 +257,6 @@ static int fusenfs_create(const char * path, mode_t mode, struct fuse_file_info 
         if (rc < 0) return rc;
     }
 
-    // int fd = open(cache_fp, fi->flags);
-
-    // if (fd < 0) return fd;
-
-    fi->fh = OPEN_FLAG;
-
 	return 0;
 }
 
@@ -304,11 +276,6 @@ static int fusenfs_open(const char *path, struct fuse_file_info *fi)
         int rc = cache_file(filepath, cache_fp, 0);
         if (rc < 0) return rc;   
     }
-    // int fd = open(cache_fp, fi->flags);
-
-    // if (fd < 0) return fd;
-
-    fi->fh = OPEN_FLAG;
 
 	return 0;
 }
@@ -382,7 +349,6 @@ static void fusenfs_destroy(void *private_data)
     libssh2_exit();
 }
 
-//! TODO: Flush file back to NFS
 static int fusenfs_release(const char *path, struct fuse_file_info * fi)
 {
     fprintf(stderr, "releasing %s\n", path);
@@ -449,13 +415,20 @@ static const struct fuse_operations fusenfs_oper = {
 
 static void show_help(const char *progname)
 {
-    //! TODO: Complete this
 	printf("usage: %s [options] <mountpoint>\n\n", progname);
 	printf("File-system specific options:\n"
-	       "    --name=<s>          Name of the \"hello\" file\n"
-	       "                        (default: \"hello\")\n"
-	       "    --contents=<s>      Contents \"hello\" file\n"
-	       "                        (default \"Hello, World!\\n\")\n"
+	       "    --user=<s>          Username to be used at host\n"
+	       "                        (default: \"sg99\")\n"
+	       "    --host-ip=<s>       Server IP\n"
+	       "                        (default \"10.10.1.2\")\n"
+           "    --pubkey=<s>        Full path to public key\n"
+	       "                        (default \"/users/sg99/.ssh/id_rsa.pub\")\n"
+           "    --privkey=<s>       Full path to private key\n"
+	       "                        (default \"/users/sg99/.ssh/id_rsa\")\n"
+           "    --host-mp=<s>       Full path to directory mounted at server\n"
+	       "                        (default \"/tmp/fusenfs\")\n"
+           "    --tmp-dir=<s>       Full path to local cache directory\n"
+	       "                        (default \"/tmp/\")\n"
 	       "\n");
 }
 
@@ -465,9 +438,6 @@ int main(int argc, char *argv[])
 	int ret;
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
-	/* Set defaults -- we have to use strdup so that
-	   fuse_opt_parse can free the defaults if other
-	   values are specified */
     options.host = strdup("10.10.1.2");
     options.username = strdup("sg99");
     options.pubkeyfile = strdup("/users/sg99/.ssh/id_rsa.pub");
@@ -479,11 +449,6 @@ int main(int argc, char *argv[])
 	if (fuse_opt_parse(&args, &options, option_spec, NULL) == -1)
 		return 1;
 
-	/* When --help is specified, first print our own file-system
-	   specific help text, then signal fuse_main to show
-	   additional help (by adding `--help` to the options again)
-	   without usage: line (by setting argv[0] to the empty
-	   string) */
 	if (options.show_help) {
 		show_help(argv[0]);
 		assert(fuse_opt_add_arg(&args, "--help") == 0);
