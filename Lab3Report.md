@@ -176,19 +176,25 @@ By default, the `/tmp/fusenfs/` directory on the host is mounted.
 | `read()`        | `fusenfs_read()`    | Expects the file in local cache. Locally opens the file, reads into the buffer, and closes it |
 | `write()`       | `fusenfs_write()`   | Expects the file in local cache. Locally opens the file, writes from the buffer, and closes it. No changes are reflected at the server |
 | `truncate()`    | `fusenfs_truncate()`| Truncates the file in local cache. Changes are not flushed to the server |
-| `close()`       | `fusenfs_release()` | This function is called after the final `fd` to a file is closed. It flushes the entire file to the server using `sft_write`. |
+| `close()` or `fsync()` or `release()`       | `fusenfs_release()` | This function is called after the final `fd` to a file is closed. It flushes the entire file to the server using `sft_write`. |
 
 We do not handle file permissions properly -- writing to a file only opened with read permissions may work.
+The file attributes, except file size, are not guaranteed to be correct.
+Other filesystem functions such as `remove()` are not implemented.
 
 Since there is no one-to-one mapping of POSIX `close()` with any FUSE operation, every `read()` and `write()` requires opening and closing the file in the local cache.
 
-Other filesystem functions such as `remove()` are not implemented.
+
+
+#### Consistency
+In general, fusenfs provides the same 'weak cache' consistency guarantees as NFS. However, the behaviour of the two filesystems can be very different depending on the scenario at hand. NFS has advanced features such as polling and periodic syncs which may provide a 'more' consistency behaviour in a multi-client setup. fusenfs on the other hand only syncs during `release()`.
 
 
 ## Experiments
 
 We perform the following two experiments (repeated 5 times) to distinguish the performance of two filesystems:
 
+All experiments are performed on Ubuntu 18.04 running on two Intel Xeon D-1548 8-core machine with 64GB of memory connected by a 10Gb link.
 
 ### Case I: Writing to a large file
 
@@ -214,3 +220,9 @@ We create a large new file from scratch on the client of size 1GB, writing in ch
 | fusenfs    | 1.754s (0.083) |
 
 fusenfs performs almost 2x better than NFS. This makes sense since fusenfs writes all the data to the local cache before flushing it over the network to the host in one go when the `fd` is closed. NFS on the other hand flushes data after every `write()` of 1MB, and hence is unable to use the entire network bandwidth. 
+
+The experiments are simple enough that they do not warrant any graph.
+
+### Discussion
+
+The benefit of the current implementation are straightforward -- primed towards large write intensive work-loads, fusenfs provides performance close to a local filesystem at the cost of fault-tolerance and cache coherency. For smaller writes or a read-only workload, NFS may provide much better performance.
