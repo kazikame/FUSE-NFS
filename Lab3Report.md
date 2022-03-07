@@ -62,9 +62,11 @@ DHCP uses UDP, since:
 3. since DHCP messages are usually exchanged between nodes within a few hops, fancy features like reliability and flow control are not required. 
 
 > What is the link-layer (e.g., Ethernet) address of your host?
+
 `14:58:d0:58:xx:xx`
 
 > What is the IP address of your DHCP server?
+
 `128.110.156.4`: taken from wireshark dump
 
 > What is the purpose of the DHCP release message? Does the DHCP server issue an acknowledgment of receipt of the client's DHCP request? What would happen if the client's DHCP release message is lost?
